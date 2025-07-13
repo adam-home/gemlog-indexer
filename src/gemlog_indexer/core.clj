@@ -1,22 +1,39 @@
 (ns gemlog-indexer.core
   (:require [clojure.string :as string]
             [clojure.java.io :as io]
+            [clojure.tools.cli :refer [parse-opts]]
             [clojure.xml :as xml])
   (:gen-class))
 
-(def GEMLOG-DIR        "resources/gemlog")
-(def ATOM-TEMPLATE     "resources/atom-template.xml")
-(def ATOM-XML-FILENAME "atom.xml")
+(def verbose (atom false))
+
+(def cli-options
+  [["-d" nil "Directory containing gemlogs"
+    :id       :gemlog-dir
+    :required "DIR"
+    :default  "resources/gemlog"]
+   ["-t" nil "atom.xml template file"
+    :id       :atom-template
+    :required "FILE"
+    :default  "resources/atom-template.xml"]
+   ["-o" nil  "output file"
+    :id       :atom-file
+    :required "FILE"
+    :default "atom.xml"]
+   ["-v" nil "verbose output"
+    :id       :verbose
+    :default  false]
+   ["-h" "--help"]])
 
 (defn file-to-title
-  ;; Given a file object, extract the title
+  "Given a file object, extract the title"
   [file]
   (-> (.getName file)
       (string/replace #"^.*?[^a-zA-Z0-9]+" "")
       (string/replace #"\.gmi$" "")))
 
 (defn gemlog-get-title
-  ;; The title is the first line of the file that starts with a single '#'
+  "The title is the first line of the file that starts with a single '#'"
   [file]
   (with-open [r (io/reader file)]
     (let [title (first (filter #(string/starts-with? % "#")
@@ -26,6 +43,8 @@
         (file-to-title file))))) 
 
 (defn gemlog-get-date
+  "Extracts the date from a File object's filename.
+  Directory paths should look like yyyy/mm/dd-name-of-gemini-file.gmi"
   [file]
   (try
     (let [parts (reverse (string/split (.getPath file) #"/"))
@@ -40,43 +59,71 @@
       nil)))
 
 (defn get-gemlog-metadata
+  "For the given gemfile (File), get data required for atom entry."
   [file]
+  (when @verbose
+    (println (str "Adding " (.getPath file))))
   {:filename     (.getPath file)
    :created-date (gemlog-get-date file)
    :title        (gemlog-get-title file)})
 
 (defn metadata-to-atom
-  [meta]
-  {:tag :entry :content [
-                         {:tag :id      :content [(:filename meta)]}
-                         {:tag :updated :content [(:created-date meta)]}
-                         {:tag :title   :content [(:title meta)]}]})
+  "Converts gemfile metadata to a clojure.xml formatted map."
+  [gemlog-metadata]
+  {:tag :entry :content [{:tag :id      :content [(:filename gemlog-metadata)]}
+                         {:tag :updated :content [(:created-date gemlog-metadata)]}
+                         {:tag :title   :content [(:title gemlog-metadata)]}]})
+
+(defn create-atom-content
+  "Create clojure.xml formatted map from a seq of gemlog metadata"
+  [gemlog-metadata]
+  {:tag :entries :content (mapv metadata-to-atom gemlog-metadata)})
 
 (defn is-gemlog-file?
+  "Sanity check that the File is indeed a gemlog file"
   [file]
   (and (string/ends-with? (.getPath file) ".gmi")
        (gemlog-get-date file)))
 
 (defn list-gemlog-files
+  "Recursively list all gemlog files in the given directory"
   [dir]
   (->> (io/file dir)
        file-seq
        (filter #(.isFile %))
        (filter #(is-gemlog-file? %))))
 
+(defn show-usage
+  "Show summary of cli options"
+  [summary]
+  (println summary))
 
-(defn create-atom-content
-  [gemlog-metadata]
-  {:tag :entries :content (mapv metadata-to-atom gemlog-metadata)})
-    
+(defn validate-options
+  "Parse and validate cli options"
+  [args]
+  (let [{:keys [options _arguments _errors summary]} (parse-opts args cli-options)]
+
+    (cond (:help options)    (do
+                               (show-usage summary)
+                               nil)
+          (:verbose options) (do
+                               (reset! verbose true)
+                               (println "gemlog directory :" (:gemlog-dir options))
+                               (println "atom template    :" (:atom-template options))
+                               (println "atom output file :" (:atom-file options))
+                               options)
+          :else              options)))
 
 (defn -main
-  [& _args]
-  (let [gemlog-files      (list-gemlog-files GEMLOG-DIR)
-        gemlog-metadata   (map get-gemlog-metadata gemlog-files)
-        atom-content      (create-atom-content gemlog-metadata)
-        xml-entries-str   (reduce str "" (map #(with-out-str (xml/emit-element %))
-                                              (:content atom-content)))
-        atom-template-str (slurp ATOM-TEMPLATE)]
+  [& args]
+  (let [options (validate-options args)]
+    (when options
+      (let [gemlog-files      (list-gemlog-files (:gemlog-dir options))
+            gemlog-metadata   (map get-gemlog-metadata gemlog-files)
+            atom-content      (create-atom-content gemlog-metadata)
+            xml-entries-str   (reduce str "" (map #(with-out-str (xml/emit-element %))
+                                                  (:content atom-content)))
+            atom-template-str (slurp (:atom-template options))]
 
-    (spit ATOM-XML-FILENAME (string/replace-first atom-template-str "<placeholder/>" xml-entries-str))))
+        (println (str "Processed " (count gemlog-metadata) " entries"))
+        (spit (:atom-file options) (string/replace-first atom-template-str "<placeholder/>" xml-entries-str))))))

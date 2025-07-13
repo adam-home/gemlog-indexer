@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <id>gemini://spikydinosaur.com/</id>
+  <title>Spiky Dinosaur</title>
+  <link href="gemini://spikydinosaur.com/"/>
+  <author>
+    <name>Adam T</name>
+  </author>
+
+  <placeholder/>
+  
+</feed>

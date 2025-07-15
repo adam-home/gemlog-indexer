@@ -1,5 +1,6 @@
 (ns gemlog-indexer.core
   (:require [gemlog-indexer.atom :as atom]
+            [gemlog-indexer.gmi  :as gmi]
             [clojure.string      :as string]
             [clojure.java.io     :as io]
             [clojure.tools.cli   :as cli])
@@ -16,10 +17,14 @@
     :id       :atom-template
     :required "FILE"
     :default  "resources/atom-template.xml"]
-   ["-o" nil  "output file"
+   ["-a" nil  "atom file"
     :id       :atom-file
     :required "FILE"
-    :default "atom.xml"]
+    :default  "atom.xml"]
+   ["-g" nil "gemini index file"
+    :id       :gmi-index-file
+    :required "FILE"
+    :default  "index.gmi"]
    ["-v" nil "verbose output"
     :id       :verbose
     :default  false]
@@ -99,6 +104,7 @@
                                (println "gemlog directory :" (:gemlog-dir options))
                                (println "atom template    :" (:atom-template options))
                                (println "atom output file :" (:atom-file options))
+                               (println "gemini index file:" (:gmi-index-file options))
                                options)
           :else              options)))
 
@@ -108,5 +114,5 @@
     (when options
       (let [gemlog-files      (list-gemlog-files (:gemlog-dir options))
             gemlog-metadata   (map get-gemlog-metadata gemlog-files)]
-        (atom/create-atom-file (:atom-file options) (:atom-template options) gemlog-metadata)))))
-
+        (atom/create-atom-file (:atom-file options) (:atom-template options) gemlog-metadata)
+        (gmi/create-gmi-index-file gemlog-metadata options)))))

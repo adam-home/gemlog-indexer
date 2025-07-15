@@ -1,8 +1,8 @@
 (ns gemlog-indexer.core
-  (:require [clojure.string :as string]
-            [clojure.java.io :as io]
-            [clojure.tools.cli :refer [parse-opts]]
-            [clojure.xml :as xml])
+  (:require [gemlog-indexer.atom :as atom]
+            [clojure.string      :as string]
+            [clojure.java.io     :as io]
+            [clojure.tools.cli   :as cli])
   (:gen-class))
 
 (def verbose (atom false))
@@ -59,25 +59,13 @@
       nil)))
 
 (defn get-gemlog-metadata
-  "For the given gemfile (File), get data required for atom entry."
+  "For the given gemfile (File), get data required for an index entry."
   [file]
   (when @verbose
     (println (str "Adding " (.getPath file))))
   {:filename     (.getPath file)
    :created-date (gemlog-get-date file)
    :title        (gemlog-get-title file)})
-
-(defn metadata-to-atom
-  "Converts gemfile metadata to a clojure.xml formatted map."
-  [gemlog-metadata]
-  {:tag :entry :content [{:tag :id      :content [(:filename gemlog-metadata)]}
-                         {:tag :updated :content [(:created-date gemlog-metadata)]}
-                         {:tag :title   :content [(:title gemlog-metadata)]}]})
-
-(defn create-atom-content
-  "Create clojure.xml formatted map from a seq of gemlog metadata"
-  [gemlog-metadata]
-  {:tag :entries :content (mapv metadata-to-atom gemlog-metadata)})
 
 (defn is-gemlog-file?
   "Sanity check that the File is indeed a gemlog file"
@@ -101,7 +89,7 @@
 (defn validate-options
   "Parse and validate cli options"
   [args]
-  (let [{:keys [options _arguments _errors summary]} (parse-opts args cli-options)]
+  (let [{:keys [options _arguments _errors summary]} (cli/parse-opts args cli-options)]
 
     (cond (:help options)    (do
                                (show-usage summary)
@@ -119,11 +107,5 @@
   (let [options (validate-options args)]
     (when options
       (let [gemlog-files      (list-gemlog-files (:gemlog-dir options))
-            gemlog-metadata   (map get-gemlog-metadata gemlog-files)
-            atom-content      (create-atom-content gemlog-metadata)
-            xml-entries-str   (reduce str "" (map #(with-out-str (xml/emit-element %))
-                                                  (:content atom-content)))
-            atom-template-str (slurp (:atom-template options))]
-
-        (println (str "Processed " (count gemlog-metadata) " entries"))
-        (spit (:atom-file options) (string/replace-first atom-template-str "<placeholder/>" xml-entries-str))))))
+            gemlog-metadata   (map get-gemlog-metadata gemlog-files)]
+        (atom/create-atom-file gemlog-metadata (:atom-template options) (:atom-file options))))))

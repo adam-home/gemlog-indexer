@@ -15,11 +15,11 @@
   {:tag :entries :content (mapv metadata-to-atom gemlog-metadata)})
 
 (defn create-atom-file
-  [atom-file atom-template gemlog-metadata]
+  [gemlog-metadata options]
   (let [atom-content      (create-atom-content gemlog-metadata)
         xml-entries-str   (reduce str "" (map #(with-out-str (xml/emit-element %))
                                               (:content atom-content)))
-        atom-template-str (slurp atom-template)]
+        atom-template-str (slurp (:atom-template options))]
         
     (println (str "Processed " (count gemlog-metadata) " entries"))
-    (spit atom-file (string/replace-first atom-template-str "<placeholder/>" xml-entries-str))))
+    (spit (:atom-file options) (string/replace-first atom-template-str "<placeholder/>" xml-entries-str))))

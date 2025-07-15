@@ -108,4 +108,5 @@
     (when options
       (let [gemlog-files      (list-gemlog-files (:gemlog-dir options))
             gemlog-metadata   (map get-gemlog-metadata gemlog-files)]
-        (atom/create-atom-file gemlog-metadata (:atom-template options) (:atom-file options))))))
+        (atom/create-atom-file (:atom-file options) (:atom-template options) gemlog-metadata)))))
+

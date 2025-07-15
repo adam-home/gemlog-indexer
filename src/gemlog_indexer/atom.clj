@@ -15,7 +15,7 @@
   {:tag :entries :content (mapv metadata-to-atom gemlog-metadata)})
 
 (defn create-atom-file
-  [gemlog-metadata atom-template atom-file]
+  [atom-file atom-template gemlog-metadata]
   (let [atom-content      (create-atom-content gemlog-metadata)
         xml-entries-str   (reduce str "" (map #(with-out-str (xml/emit-element %))
                                               (:content atom-content)))

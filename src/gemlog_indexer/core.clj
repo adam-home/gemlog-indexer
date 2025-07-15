@@ -9,23 +9,23 @@
 (def verbose (atom false))
 
 (def cli-options
-  [["-d" nil "Directory containing gemlogs"
+  [["-d" "--gemlog-dir" "Directory containing gemlogs"
     :id       :gemlog-dir
     :required "DIR"
     :default  "resources/gemlog"]
-   ["-t" nil "atom.xml template file"
+   ["-t" "--atom-template" "atom.xml template file"
     :id       :atom-template
     :required "FILE"
     :default  "resources/atom-template.xml"]
-   ["-a" nil  "atom file"
+   ["-a" "--atom-file" "atom file"
     :id       :atom-file
     :required "FILE"
     :default  "atom.xml"]
-   ["-g" nil "gemini index file"
+   ["-g" "--gemini-index-file" "gemini index file"
     :id       :gmi-index-file
     :required "FILE"
     :default  "index.gmi"]
-   ["-v" nil "verbose output"
+   ["-v" "--verbose" "verbose output"
     :id       :verbose
     :default  false]
    ["-h" "--help"]])
@@ -114,5 +114,5 @@
     (when options
       (let [gemlog-files      (list-gemlog-files (:gemlog-dir options))
             gemlog-metadata   (map get-gemlog-metadata gemlog-files)]
-        (atom/create-atom-file (:atom-file options) (:atom-template options) gemlog-metadata)
+        (atom/create-atom-file gemlog-metadata options)(:atom-file options) (:atom-template options) gemlog-metadata
         (gmi/create-gmi-index-file gemlog-metadata options)))))

@@ -30,6 +30,12 @@
     :default  false]
    ["-h" "--help"]])
 
+(defn strip-dir
+  [filename dir]
+  (if (string/starts-with? filename dir)
+    (subs filename (inc (count dir)))
+    filename))
+
 (defn file-to-title
   "Given a file object, extract the title"
   [file]
@@ -65,10 +71,10 @@
 
 (defn get-gemlog-metadata
   "For the given gemfile (File), get data required for an index entry."
-  [file]
+  [file gemlog-dir]
   (when @verbose
     (println (str "Adding " (.getPath file))))
-  {:filename     (.getPath file)
+  {:filename     (strip-dir (.getPath file) gemlog-dir)
    :created-date (gemlog-get-date file)
    :title        (gemlog-get-title file)})
 
@@ -113,6 +119,6 @@
   (let [options (validate-options args)]
     (when options
       (let [gemlog-files      (list-gemlog-files (:gemlog-dir options))
-            gemlog-metadata   (map get-gemlog-metadata gemlog-files)]
-        (atom/create-atom-file gemlog-metadata options)(:atom-file options) (:atom-template options) gemlog-metadata
+            gemlog-metadata   (map #(get-gemlog-metadata % (:gemlog-dir options)) gemlog-files)]
+        (atom/create-atom-file gemlog-metadata options)
         (gmi/create-gmi-index-file gemlog-metadata options)))))
